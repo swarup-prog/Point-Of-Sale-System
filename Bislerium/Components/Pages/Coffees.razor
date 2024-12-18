@@ -1,0 +1,258 @@
+﻿@page "/coffees"
+
+<nav class="navbar navbar-light justify-content-between">
+    <h1 class="navbar-brand mb-0 h1 fw-bold" style=" background: linear-gradient(90deg, #78AD4B,  #B9CC4E);
+        -webkit-text-fill-color: transparent;
+        -webkit-background-clip: text;">
+        Coffees
+    </h1>
+    <button class="btn btn-primary" type="button" @onclick="OpenAddCoffeeDialog">
+         Add
+    </button>
+</nav>
+
+<div class="d-flex mt-2 mb-2">
+    <input type="search" class="form-control search" placeholder="Search" @oninput="SearchCoffeeType" />    
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                <div class="d-flex">
+                    Type
+                    <a class='btn text-@(_sortBy == "coffeeType" ? "primary" : "secondary")' data-mdb-toggle="tooltip" @onclick='()=>SortByHandler("coffeeType")'>
+                        <span class='oi oi-sort-@(_sortBy == "coffeeType" ? _sortDirection : "ascending")' />
+                    </a>
+                </div>
+            </th>
+            <th>
+                <div class="d-flex">
+                    Price
+                    <a class='btn text-@(_sortBy == "price" ? "primary" : "secondary")' data-mdb-toggle="tooltip"
+                       @onclick='()=>SortByHandler("price")'>
+                        <span class='oi oi-sort-@(_sortBy == "price" ? _sortDirection : "ascending")' />
+                    </a>
+                </div>
+            </th>
+            <th>
+                <div class="d-flex">
+                    Created At
+                    <a class='btn text-@(_sortBy == "createdAt" ? "primary" : "secondary")' data-mdb-toggle="tooltip"
+                       @onclick='()=>SortByHandler("createdAt")'>
+                        <span class='oi oi-sort-@(_sortBy == "createdAt" ? _sortDirection : "ascending")' />
+                    </a>
+                </div>
+            </th>
+            <th class="align-baseline"><div>Actions</div></th>
+        </tr>
+    </thead>
+    <tbody>
+        @{
+            IEnumerable<CoffeeItem> coffeeList = _coffees;
+            if (_sortBy == "price")
+            {
+                coffeeList = _sortDirection == "ascending" ? coffeeList.OrderBy(t => t.Price) : coffeeList.OrderByDescending(t =>
+                t.Price);
+            }
+            else if (_sortBy == "coffeeType")
+            {
+                coffeeList = _sortDirection == "ascending" ? coffeeList.OrderBy(t => t.CoffeeType) : coffeeList.OrderByDescending(t =>
+                t.CoffeeType);
+            }
+            else if (_sortBy == "createdAt")
+            {
+                coffeeList = _sortDirection == "ascending" ? coffeeList.OrderBy(t => t.CreatedAt) : coffeeList.OrderByDescending(t =>
+                t.CreatedAt);
+            }
+
+            foreach (var coffeeItem in coffeeList)
+            {
+                <tr>
+                  
+                    <td>@coffeeItem.CoffeeType</td>
+                    <td>
+                       $ @coffeeItem.Price
+                    </td>
+                    <td>
+                        @coffeeItem.CreatedAt
+                    </td>
+                    <td class="d-flex gap-2">
+                        <button class=" cbtn btn-edit" type="button"
+                                @onclick="()=>OpenEditCoffeeDialog(coffeeItem)">
+                             Edit
+                        </button>
+                        <button class="cbtn btn-delete" type="button" @onclick="()=>OpenDeleteCoffeeDialog(coffeeItem)">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+@if (_showEditCoffeeDialog)
+{
+    <ModalDialog Title="@_dialogTitle" OnClose="@OnEditCoffeeDialogClose" OkLabel="@_dialogOkLabel">
+        <div class="form-floating">
+            <input id="coffeetype" type="text" class="form-control" @bind="_coffeeModel.CoffeeType" placeholder="Coffee Type" />
+                <label for="coffeeType">Coffee Type</label>
+        </div>
+        <div class="form-floating">
+            <input id="price" type="number" class="form-control" @bind="_coffeeModel.Price" placeholder="Price" />
+            <label for="price">Price</label>
+        </div>
+        <div class="form-floating">
+            <input id="coffeetype" type="password" class="form-control" @bind="_password" placeholder="Password" />
+                <label for="password">Password</label>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_editCoffeeErrorMessage))
+            {
+                <AlertMessage Type="danger" Message="@_editCoffeeErrorMessage" />
+            }
+     </ModalDialog>
+}
+
+@if (_showDeleteCoffeeDialog)
+{
+    <ModalDialog Title="Delete Coffee" OnClose="@OnDeleteCoffeeDialogClose" OkLabel="Confirm">
+    <p>Are you sure you want to delete <strong style="color:red;">@_deleteCoffee.CoffeeType</strong> coffee?</p>
+    @if (!string.IsNullOrEmpty(_deleteCoffeeErrorMessage))
+        {
+            <AlertMessage Type="danger" Message="@_deleteCoffeeErrorMessage" />
+        }
+        </ModalDialog>
+}
+
+@code {
+    [CascadingParameter]
+    private GlobalState _globalState{ get; set; }
+    private bool _showEditCoffeeDialog { get; set; }
+    private bool _showDeleteCoffeeDialog { get; set; }
+    private List<CoffeeItem> _coffees { get; set; }
+    private CoffeeItem _deleteCoffee { get; set; }
+    private string _dialogTitle { get; set; }
+    private string _dialogOkLabel { get; set; }
+    private string _editCoffeeErrorMessage { get; set; }
+    private string _deleteCoffeeErrorMessage { get; set; }
+    private CoffeeItem _coffeeModel { get; set; }
+    private string _sortBy = "price";
+    private string _password { get; set; }
+    private string _sortDirection = "ascending";
+
+    protected override void OnInitialized()
+    {
+        _coffees = CoffeeService.GetAll();
+    }
+
+    private void SortByHandler(string sortByName)
+    {
+        if (_sortBy == sortByName)
+        {
+            _sortDirection = _sortDirection == "ascending" ? "descending" : "ascending";
+        } 
+        else
+        {
+            _sortBy = sortByName;
+            _sortDirection = "ascending";
+        }
+    }
+
+    private void OpenAddCoffeeDialog()
+    {
+        _dialogTitle = "Add Coffee";
+        _dialogOkLabel = "Add";
+        _coffeeModel = new CoffeeItem();
+        _coffeeModel.Id = Guid.Empty;
+        _showEditCoffeeDialog = true;
+    }
+
+    private void SearchCoffeeType(ChangeEventArgs e)
+    {
+        var searchTerm = e.Value.ToString();
+        if (!string.IsNullOrEmpty(searchTerm) && searchTerm.Length > 2)
+        {
+            _coffees = CoffeeService.GetAll().Where(t => t.CoffeeType.ToLower().Contains(searchTerm.ToLower())).ToList();
+        } 
+        else
+        {
+            _coffees = CoffeeService.GetAll();
+        }
+    }
+
+    private void OpenEditCoffeeDialog(CoffeeItem editCoffee)
+    {
+        _dialogTitle = "Edit Coffee";
+        _dialogOkLabel = "Save";
+
+        _coffeeModel = editCoffee;
+        _showEditCoffeeDialog = true;
+    }
+
+    private void OpenDeleteCoffeeDialog(CoffeeItem coffeeItem)
+    {
+        _deleteCoffee = coffeeItem;
+        _showDeleteCoffeeDialog = true;
+    }
+
+    private void OnEditCoffeeDialogClose(bool isCancel)
+    {
+        if (isCancel)
+        {
+            _showEditCoffeeDialog = false;
+        }
+        else
+        {
+            try
+            {
+                _editCoffeeErrorMessage = "";
+
+                if (!UsersService.CheckPassword(_globalState.CurrentUser.Username, _password))
+                {
+                    _editCoffeeErrorMessage = "Incorrect Password";
+                } else
+                {
+                    if (_coffeeModel.Id == Guid.Empty)
+                    {
+                        _coffees = CoffeeService.Create(_coffeeModel.CoffeeType, _coffeeModel.Price);
+                    }
+                    else
+                    {
+                        _coffees = CoffeeService.Update(_coffeeModel.Id, _coffeeModel.CoffeeType, _coffeeModel.Price);
+                    }
+                    _showEditCoffeeDialog = false;
+                }
+                
+            }
+            catch (Exception e)
+            {
+                _editCoffeeErrorMessage = e.Message;
+            }
+        }
+    }
+    private void OnDeleteCoffeeDialogClose(bool isCancel)
+    {
+        if (isCancel)
+        {
+
+            _showDeleteCoffeeDialog = false;
+            _deleteCoffee = null;
+        }
+        else
+        {
+            try
+            {
+                _deleteCoffeeErrorMessage = "";
+                _coffees = CoffeeService.Delete(_deleteCoffee.Id);
+                _showDeleteCoffeeDialog = false;
+                _deleteCoffee = null;
+            }
+            catch (Exception e)
+            {
+                _deleteCoffeeErrorMessage = e.Message;
+            }
+        }
+    }
+}

@@ -1,0 +1,272 @@
+﻿@page "/orders"
+
+<nav class="navbar navbar-light justify-content-between">
+    <h1 class="navbar-brand mb-0 h1 fw-bold" style=" background: linear-gradient(90deg, #78AD4B,  #B9CC4E);
+        -webkit-text-fill-color: transparent;
+        -webkit-background-clip: text;">
+        Orders
+    </h1>
+    <button class="btn btn-primary" type="button" @onclick="OpenAddOrderDialog">
+        Order
+    </button>
+</nav>
+
+@* <div class="d-flex mt-2 mb-2">
+    <input type="search" class="form-control search" placeholder="Search" @oninput="SearchOrderType" />
+</div> *@
+
+<table class="table">
+    <thead>
+        <tr>                
+            <th class="align-baseline"><div>Coffee</div></th>
+            <th class="align-baseline"><div>AddIn</div></th>
+            <th class="align-baseline"><div>Total</div></th>
+            <th class="align-baseline"><div>Member</div></th>
+            <th class="align-baseline"><div>Type</div></th>
+            <th class="align-baseline">
+                <div>Created By
+                    
+            </div>
+            </th>
+            <th class="align-baseline"><div>Created At</div></th>
+        </tr>
+    </thead>
+    <tbody>
+        @{
+            IEnumerable<Order> orderList = _orders;
+            orderList = orderList.OrderByDescending(t =>
+            t.CreatedAt);
+
+            foreach (var order in orderList)
+            {
+                <tr>
+
+                    <td >
+                        @{
+                            CoffeeItem coffee = CoffeeService.GetById(order.Coffee);
+                            <span>@(coffee == null ? "Doesn't exist" : coffee.CoffeeType)</span>
+                        }
+                        
+                    </td>
+                    <td>
+                        @{
+                            AddInItem addIn = AddInService.GetById(order.AddIn);
+                            <span>@(addIn == null ? "Doesn't exist" : addIn.AddInName)</span>
+                        }
+                    </td>
+                    <td class="d-flex gap-2">
+                        $ @order.Total
+                    </td>
+                    <td>
+                        @{
+                            if (order.MemberPhone != null)
+                            {
+                                var member = MemberService.GetByPhone(order.MemberPhone);
+                                <span style=" background: linear-gradient(90deg, #78AD4B, #B9CC4E);
+                                      -webkit-text-fill-color: transparent;
+                                      -webkit-background-clip: text;">@(member == null ? "Ex. Member" : member.Name)</span>
+                            } else
+                            {
+                                <span style=" color: red;">Non-Member</span>
+                            }
+
+                        }
+                    </td>
+                    <td>
+                        <span style="
+                                    width: fit-content;
+                                    padding: 3px 4px;
+                                    border-radius: 5px;
+                                    font-size: 11px;
+                                    font-weight: bold;
+                                    color: white;
+                                        background: @(@order.OrderType == OrderType.Normal ? "gray" : @order.OrderType == OrderType.Complimentary ? "green" : "orange");
+                                        ">@order.OrderType</span>
+                    </td>
+                    <td>
+                        @{
+                            var creator = UsersService.GetById(order.CreatedBy);
+                            <span>@(creator == null ? "Unknown" : creator.Username)</span>
+                        }
+                    </td>
+                    <td>
+                        @order.CreatedAt
+                    </td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+@if (_showAddOrderDialog)
+{
+    <ModalDialog Title="@_dialogTitle" OnClose="@OnAddOrderDialogClose" OkLabel="@_dialogOkLabel">
+        <div>
+            <label for="coffee">Coffee</label>
+            <select class="form-select" aria-label="coffee" @bind="_orderModel.Coffee">
+                @{
+                    IEnumerable<CoffeeItem> coffeeList = _coffees;
+                    foreach (CoffeeItem coffee in coffeeList)
+                    {
+                        <option value="@coffee.Id">@coffee.CoffeeType  ($@coffee.Price)</option>
+                    }
+                }
+            </select>
+        </div>
+
+        <div>
+            <label for="addIn">Add In</label>
+            <select class="form-select" aria-label="addIns" @bind="_orderModel.AddIn">
+                @{
+                    IEnumerable<AddInItem> addInsList = _addIns;
+                    foreach (AddInItem addIn in addInsList)
+                    {
+                        <option value="@addIn.Id">@addIn.AddInName ($@addIn.Price)</option>
+                    }
+                }
+            </select>
+        </div>
+
+        @{
+            UpdateTotalPrice();
+        }
+
+        <div class="form-floating">
+            <input id="phone" type="text" class="form-control" @bind="_orderModel.MemberPhone" placeholder="Phone Number" @oninput="GetMemberDetails"/>
+            <label for="phone">Member Phone</label>
+        </div>
+        @{
+            if (_member != null)
+            {
+                UpdateTotalPrice();
+                <div class="d-flex flex-column" style=" background: linear-gradient(90deg, #78AD4B,  #B9CC4E);
+        -webkit-text-fill-color: transparent;
+        -webkit-background-clip: text;">
+                    <span><strong>Member:</strong> @_member.Name</span>
+                    <span><strong>Complimentary In:</strong> @_member.OrdersTillComplimentary Orders</span>
+                </div>
+                if (_member.OrdersTillComplimentary == 0)
+                {
+                    _totalPrice = 0;
+                }
+            }
+        }
+
+
+        @if (!string.IsNullOrEmpty(_addOrderErrorMessage))
+        {
+            <AlertMessage Type
+            ="danger" Message
+            ="@_addOrderErrorMessage" />
+        }
+        <div>
+            <strong>Total Price:</strong> $@_totalPrice
+        </div>
+    </ModalDialog>
+}
+
+
+@code {
+    [CascadingParameter]
+    private GlobalState _globalState { get; set; }
+    private bool _showAddOrderDialog { get; set; }
+    private List<Order> _orders { get; set; }
+    private Member _member { get; set; }
+    private List<CoffeeItem> _coffees { get; set; }
+    private List<AddInItem> _addIns { get; set; }
+    private string _dialogTitle { get; set; }
+    private string _dialogOkLabel { get; set; }
+    private double _totalPrice { get; set; } = 0;
+    private string _orderType { get; set; } = "normal";
+    private string _addOrderErrorMessage { get; set; }
+    private Order _orderModel { get; set; }
+    private bool _memberExist { get; set; }
+
+    protected override void OnInitialized()
+    {
+        _orders = OrderService.GetAll();
+        _coffees = CoffeeService.GetAll();
+        _addIns = AddInService.GetAll();
+    }
+
+    private void OpenAddOrderDialog()
+    {
+        _dialogTitle = "Create Order";
+        _dialogOkLabel = "Order";
+        _orderModel = new Order();
+        _orderModel.Id = Guid.Empty;
+        _showAddOrderDialog = true;
+    }
+
+    private void GetMemberDetails(ChangeEventArgs e)
+    {
+        var number = e.Value.ToString();
+        try
+        {   
+            if (!string.IsNullOrEmpty(number) && number.Length > 9)
+            {
+                _member = MemberService.GetByPhone(number);
+                _addOrderErrorMessage = "";
+            } else
+            {
+                _member = null;
+            }
+
+        }
+        catch (Exception ex)
+        {
+            _addOrderErrorMessage = ex.Message;
+        }
+
+    }
+
+    private void UpdateTotalPrice()
+    {
+        _totalPrice = 0;
+        if (_orderModel.Coffee != Guid.Empty)
+        {
+            _totalPrice += CoffeeService.GetById(_orderModel.Coffee).Price;
+        }
+        if (_orderModel.AddIn != Guid.Empty)
+        {
+            _totalPrice += AddInService.GetById(_orderModel.AddIn).Price;
+
+        }
+
+        if (_orderModel.Coffee != Guid.Empty && _orderModel.AddIn != Guid.Empty && _member != null && _member.TotalPurchase > 24)
+        {
+            _totalPrice = _totalPrice - (0.1 * _totalPrice);
+        }
+    }
+
+    private void OnAddOrderDialogClose(bool isCancel)
+    {
+        if (isCancel)
+        {
+            _showAddOrderDialog = false;
+        }
+        else
+        {
+            try
+            {
+                _orderModel.Total = _totalPrice;
+                if (_member != null && _member.OrdersTillComplimentary == 0)
+                {
+                    _orderType = "complimentary";
+                }
+
+                if (_member != null && _member.TotalPurchase > 24)
+                {
+                    _orderType = "discount";
+                }
+
+                _orders = OrderService.Create(_orderModel.Coffee, _orderModel.AddIn, _orderModel.MemberPhone, _orderModel.Total, _orderType, _globalState.CurrentUser.Id );
+                _showAddOrderDialog = false;
+            }
+            catch (Exception e)
+            {
+                _addOrderErrorMessage = e.Message;
+            }
+        }
+    }
+}

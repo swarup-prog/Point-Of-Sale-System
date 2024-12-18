@@ -1,0 +1,260 @@
+﻿@page "/add-ins"
+
+<nav class="navbar navbar-light justify-content-between">
+    <h1 class="navbar-brand mb-0 h1 fw-bold" style=" background: linear-gradient(90deg, #78AD4B,  #B9CC4E);
+        -webkit-text-fill-color: transparent;
+        -webkit-background-clip: text;">
+        Add Ins
+    </h1>
+    <button class="btn btn-primary"  type="button" @onclick="OpenAddAddInDialog">
+        Add
+    </button>
+</nav>
+
+<div class="d-flex mt-2 mb-2">
+    <input type="search" class="form-control search" placeholder="Search" @oninput="SearchAddInName" />
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                <div class="d-flex">
+                    Type
+                    <a class='btn text-@(_sortBy == "addInName" ? "primary" : "secondary")' data-mdb-toggle="tooltip" @onclick='()=>SortByHandler("addInName")'>
+                        <span class='oi oi-sort-@(_sortBy == "addInName" ? _sortDirection : "ascending")' />
+                    </a>
+                </div>
+            </th>
+            <th>
+                <div class="d-flex">
+                    Price
+                    <a class='btn text-@(_sortBy == "price" ? "primary" : "secondary")' data-mdb-toggle="tooltip"
+                       @onclick='()=>SortByHandler("price")'>
+                        <span class='oi oi-sort-@(_sortBy == "price" ? _sortDirection : "ascending")' />
+                    </a>
+                </div>
+            </th>
+            <th>
+                <div class="d-flex">
+                    Created At
+                    <a class='btn text-@(_sortBy == "createdAt" ? "primary" : "secondary")' data-mdb-toggle="tooltip"
+                       @onclick='()=>SortByHandler("createdAt")'>
+                        <span class='oi oi-sort-@(_sortBy == "createdAt" ? _sortDirection : "ascending")' />
+                    </a>
+                </div>
+            </th>
+            <th class="align-baseline"> Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @{
+            IEnumerable<AddInItem> addinList = _addins;
+            if (_sortBy == "price")
+            {
+                addinList = _sortDirection == "ascending" ? addinList.OrderBy(t => t.Price) : addinList.OrderByDescending(t =>
+                t.Price);
+            }
+            else if (_sortBy == "addInName")
+            {
+                addinList = _sortDirection == "ascending" ? addinList.OrderBy(t => t.AddInName) : addinList.OrderByDescending(t =>
+                t.AddInName);
+            }
+            else if (_sortBy == "createdAt")
+            {
+                addinList = _sortDirection == "ascending" ? addinList.OrderBy(t => t.CreatedAt) : addinList.OrderByDescending(t =>
+                t.CreatedAt);
+            }
+
+            foreach (var addinItem in addinList)
+            {
+                <tr>
+
+                    <td>@addinItem.AddInName</td>
+                    <td>
+                        $ @addinItem.Price
+                    </td>
+                    <td>
+                        @addinItem.CreatedAt
+                    </td>
+                    <td class="d-flex gap-2">
+                        <button class="cbtn btn-edit" type="button"
+                                @onclick="()=>OpenEditAddInDialog(addinItem)">
+                             Edit
+                        </button>
+                        <button class="cbtn btn-delete" type="button" @onclick="()=>OpenDeleteAddInDialog(addinItem)">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+@if (_showEditAddInDialog)
+{
+    <ModalDialog Title="@_dialogTitle" OnClose="@OnEditAddInDialogClose" OkLabel="@_dialogOkLabel">
+        <div class="form-floating">
+            <input id="addintype" type="text" class="form-control" @bind="_addinModel.AddInName" placeholder="AddIn Type" />
+            <label for="addInName">AddIn Name</label>
+        </div>
+        <div class="form-floating">
+            <input id="price" type="number" class="form-control" @bind="_addinModel.Price" placeholder="Price" />
+            <label for="price">Price</label>
+        </div>
+        <div class="form-floating">
+            <input id="coffeetype" type="password" class="form-control" @bind="_password" placeholder="Password" />
+                <label for="password">Password</label>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_editAddInErrorMessage))
+        {
+            <AlertMessage Type="danger" Message="@_editAddInErrorMessage" />
+        }
+    </ModalDialog>
+}
+
+@if (_showDeleteAddInDialog)
+{
+    <ModalDialog Title="Delete AddIn" OnClose="@OnDeleteAddInDialogClose" OkLabel="Confirm">
+        <p>Are you sure you want to delete <strong>@_deleteAddIn.AddInName</strong> addin?</p>
+        @if (!string.IsNullOrEmpty(_deleteAddInErrorMessage))
+        {
+            <AlertMessage Type="danger" Message="@_deleteAddInErrorMessage" />
+        }
+    </ModalDialog>
+}
+
+@code {
+    [CascadingParameter]
+    private GlobalState _globalState { get; set; }
+    private bool _showEditAddInDialog { get; set; }
+    private bool _showDeleteAddInDialog { get; set; }
+    private List<AddInItem> _addins { get; set; }
+    private AddInItem _deleteAddIn { get; set; }
+    private string _dialogTitle { get; set; }
+    private string _dialogOkLabel { get; set; }
+    private string _editAddInErrorMessage { get; set; }
+    private string _deleteAddInErrorMessage { get; set; }
+    private AddInItem _addinModel { get; set; }
+    private string _password { get; set; }
+    private string _sortBy = "price";
+    private string _sortDirection = "ascending";
+
+    protected override void OnInitialized()
+    {
+        _addins = AddInService.GetAll();
+    }
+
+    // Sort the Add-Ins
+    private void SortByHandler(string sortByName)
+    {
+        if (_sortBy == sortByName)
+        {
+            _sortDirection = _sortDirection == "ascending" ? "descending" : "ascending";
+        }
+        else
+        {
+            _sortBy = sortByName;
+            _sortDirection = "ascending";
+        }
+    }
+
+    private void OpenAddAddInDialog()
+    {
+        _dialogTitle = "Add AddIn";
+        _dialogOkLabel = "Add";
+        _addinModel = new AddInItem();
+        _addinModel.Id = Guid.Empty;
+        _showEditAddInDialog = true;
+    }
+
+    // Search Add-Ins
+    private void SearchAddInName(ChangeEventArgs e)
+    {
+        var searchTerm = e.Value.ToString();
+        if (!string.IsNullOrEmpty(searchTerm) && searchTerm.Length > 2)
+        {
+            _addins = AddInService.GetAll().Where(t => t.AddInName.ToLower().Contains(searchTerm.ToLower())).ToList();
+        }
+        else
+        {
+            _addins = AddInService.GetAll();
+        }
+    }
+
+    private void OpenEditAddInDialog(AddInItem editAddIn)
+    {
+        _dialogTitle = "Edit AddIn";
+        _dialogOkLabel = "Save";
+
+        _addinModel = editAddIn;
+        _showEditAddInDialog = true;
+    }
+
+    private void OpenDeleteAddInDialog(AddInItem addinItem)
+    {
+        _deleteAddIn = addinItem;
+        _showDeleteAddInDialog = true;
+    }
+
+    private void OnEditAddInDialogClose(bool isCancel)
+    {
+        if (isCancel)
+        {
+            _showEditAddInDialog = false;
+        }
+        else
+        {
+            try
+            {
+                _editAddInErrorMessage = "";
+
+                if (!UsersService.CheckPassword(_globalState.CurrentUser.Username, _password))
+                {
+                    _editAddInErrorMessage = "Incorrect Password";
+                }
+                else
+                {
+                    if (_addinModel.Id == Guid.Empty)
+                    {
+                        _addins = AddInService.Create(_addinModel.AddInName, _addinModel.Price);
+                    }
+                    else
+                    {
+                        _addins = AddInService.Update(_addinModel.Id, _addinModel.AddInName, _addinModel.Price);
+                    }
+                    _showEditAddInDialog = false;
+                }                
+            }
+            catch (Exception e)
+            {
+                _editAddInErrorMessage = e.Message;
+            }
+        }
+    }
+    private void OnDeleteAddInDialogClose(bool isCancel)
+    {
+        if (isCancel)
+        {
+
+            _showDeleteAddInDialog = false;
+            _deleteAddIn = null;
+        }
+        else
+        {
+            try
+            {
+                _deleteAddInErrorMessage = "";
+                _addins = AddInService.Delete(_deleteAddIn.Id);
+                _showDeleteAddInDialog = false;
+                _deleteAddIn = null;
+            }
+            catch (Exception e)
+            {
+                _deleteAddInErrorMessage = e.Message;
+            }
+        }
+    }
+}

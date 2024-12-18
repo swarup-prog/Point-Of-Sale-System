@@ -1,0 +1,268 @@
+﻿@page "/members"
+
+<nav class="navbar navbar-light justify-content-between">
+    <h1 class="navbar-brand mb-0 h1 fw-bold" style=" background: linear-gradient(90deg, #78AD4B,  #B9CC4E);
+        -webkit-text-fill-color: transparent;
+        -webkit-background-clip: text;">
+        Members
+    </h1>
+    <button class="btn btn-primary" type="button" @onclick="OpenAddMemberDialog">
+        Add
+    </button>
+</nav>
+
+<div class="d-flex mt-2 mb-2">
+    <input type="search" class="form-control search" placeholder="Search" @oninput="SearchMemberName" />
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                <div class="d-flex">
+                    Name
+                    <a class='btn text-@(_sortBy == "name" ? "primary" : "secondary")' data-mdb-toggle="tooltip" @onclick='()=>SortByHandler("name")'>
+                        <span class='oi oi-sort-@(_sortBy == "name" ? _sortDirection : "ascending")' />
+                    </a>
+                </div>
+            </th>
+            <th class="align-baseline">
+                <div>Phone</div>
+            </th>
+            <th>
+                <div class="d-flex">
+                    Total Purchase
+                    <a class='btn text-@(_sortBy == "totalPurchase" ? "primary" : "secondary")' data-mdb-toggle="tooltip" @onclick='()=>SortByHandler("totalPurchase")'>
+                        <span class='oi oi-sort-@(_sortBy == "totalPurchase" ? _sortDirection : "ascending")' />
+                    </a>
+                </div>
+            </th>
+            <th>
+                <div class="d-flex">
+                    Complimentary In
+                    <a class='btn text-@(_sortBy == "ordersTillComplimentary" ? "primary" : "secondary")' data-mdb-toggle="tooltip" @onclick='()=>SortByHandler("ordersTillComplimentary")'>
+                        <span class='oi oi-sort-@(_sortBy == "ordersTillComplimentary" ? _sortDirection : "ascending")' />
+                    </a>
+                </div>
+            </th>
+            <th class="align-baseline">
+                <div>Created By</div>
+            </th>
+            <th>
+                <div class="d-flex">
+                    Created At
+                    <a class='btn text-@(_sortBy == "createdAt" ? "primary" : "secondary")' data-mdb-toggle="tooltip"
+                       @onclick='()=>SortByHandler("createdAt")'>
+                        <span class='oi oi-sort-@(_sortBy == "createdAt" ? _sortDirection : "ascending")' />
+                    </a>
+                </div>
+            </th>
+            <th class="align-baseline"><div>Actions</div></th>
+        </tr>
+    </thead>
+    <tbody> 
+        @{
+            IEnumerable<Member> memberList = _members;
+            if (_sortBy == "name")
+            {
+                memberList = _sortDirection == "ascending" ? memberList.OrderBy(t => t.Name) : memberList.OrderByDescending(t =>
+                t.Name);
+            }
+            else if (_sortBy == "totalPurchase")
+            {
+                memberList = _sortDirection == "ascending" ? memberList.OrderBy(t => t.TotalPurchase) : memberList.OrderByDescending(t =>
+                t.TotalPurchase);
+            }
+            else if (_sortBy == "ordersTillComplimentary")
+            {
+                memberList = _sortDirection == "ascending" ? memberList.OrderBy(t => t.OrdersTillComplimentary) : memberList.OrderByDescending(t =>
+                t.OrdersTillComplimentary);
+            }
+            else if (_sortBy == "createdAt")
+            {
+                memberList = _sortDirection == "ascending" ? memberList.OrderBy(t => t.CreatedAt) : memberList.OrderByDescending(t =>
+                t.CreatedAt);
+            }
+
+            foreach (var member in memberList)
+            {
+                <tr>
+
+                    <td>@member.Name</td>
+                    <td>@member.Phone</td>
+                    <td>@member.TotalPurchase</td>
+                    <td>@member.OrdersTillComplimentary</td>
+                    <td>
+                        @{
+                            var creator = UsersService.GetById(member.CreatedBy);
+                            <span>@(creator == null ? "Unknown" : creator.Username)</span>
+                        }
+                    </td>
+                    <td>@member.CreatedAt</td>
+                    <td class="d-flex gap-2">
+                        <button class=" cbtn btn-edit" type="button"
+                                @onclick="()=>OpenEditMemberDialog(member)">
+                            Edit
+                        </button>
+                        <button class="cbtn btn-delete" type="button" @onclick="()=>OpenDeleteMemberDialog(member)">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+@if (_showEditMemberDialog)
+{
+    <ModalDialog Title="@_dialogTitle" OnClose="@OnEditMemberDialogClose" OkLabel="@_dialogOkLabel">
+        <div class="form-floating">
+            <input id="membertype" type="text" class="form-control" @bind="_memberModel.Name" placeholder="Name" />
+            <label for="name">Name</label>
+        </div>
+        <div class="form-floating">
+            <input id="membertype" type="text" class="form-control" @bind="_memberModel.Phone" placeholder="Phone" />
+            <label for="phone">Phone</label>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_editMemberErrorMessage))
+        {
+            <AlertMessage Type="danger" Message="@_editMemberErrorMessage" />
+        }
+    </ModalDialog>
+}
+
+@if (_showDeleteMemberDialog)
+{
+    <ModalDialog Title="Delete Member" OnClose="@OnDeleteMemberDialogClose" OkLabel="Confirm">
+        <p>Are you sure you want to delete <strong style="color:red;">@_deleteMember.Name</strong> as a member?</p>
+        @if (!string.IsNullOrEmpty(_deleteMemberErrorMessage))
+        {
+            <AlertMessage Type="danger" Message="@_deleteMemberErrorMessage" />
+        }
+    </ModalDialog>
+}
+
+@code {
+    [CascadingParameter]
+    private GlobalState _globalState { get; set; }
+    private bool _showEditMemberDialog { get; set; }
+    private bool _showDeleteMemberDialog { get; set; }
+    private List<Member> _members { get; set; }
+    private Member _deleteMember { get; set; }
+    private string _dialogTitle { get; set; }
+    private string _dialogOkLabel { get; set; }
+    // private string _addMemberErrorMessage { get; set; }
+    private string _editMemberErrorMessage { get; set; }
+    private string _deleteMemberErrorMessage { get; set; }
+    private Member _memberModel { get; set; }
+    private string _sortBy = "name";
+    private string _sortDirection = "ascending";
+
+    protected override void OnInitialized()
+    {
+        _members = MemberService.GetAll();
+    }
+
+    private void SortByHandler(string sortByName)
+    {
+        if (_sortBy == sortByName)
+        {
+            _sortDirection = _sortDirection == "ascending" ? "descending" : "ascending";
+        }
+        else
+        {
+            _sortBy = sortByName;
+            _sortDirection = "ascending";
+        }
+    }
+
+    private void OpenAddMemberDialog()
+    {
+        _dialogTitle = "Add Member";
+        _dialogOkLabel = "Add";
+        _memberModel = new Member();
+        _memberModel.Id = Guid.Empty;
+        _showEditMemberDialog = true;
+    }
+
+    private void SearchMemberName(ChangeEventArgs e)
+    {
+        var searchTerm = e.Value.ToString();
+        if (!string.IsNullOrEmpty(searchTerm) && searchTerm.Length > 2)
+        {
+            _members = MemberService.GetAll().Where(t => t.Name.ToLower().Contains(searchTerm.ToLower())).ToList();
+        }
+        else
+        {
+            _members = MemberService.GetAll();
+        }
+    }
+
+    private void OpenEditMemberDialog(Member editMember)
+    {
+        _dialogTitle = "Edit Member Details";
+        _dialogOkLabel = "Save";
+
+        _memberModel = editMember;
+        _showEditMemberDialog = true;
+    }
+
+    private void OpenDeleteMemberDialog(Member member)
+    {
+        _deleteMember = member;
+        _showDeleteMemberDialog = true;
+    }
+
+    private void OnEditMemberDialogClose(bool isCancel)
+    {
+        if (isCancel)
+        {
+            _showEditMemberDialog = false;
+        }
+        else
+        {
+            try
+            {
+                _editMemberErrorMessage = "";
+                if (_memberModel.Id == Guid.Empty)
+                {
+                    _members = MemberService.Create(_memberModel.Name, _memberModel.Phone, _globalState.CurrentUser.Id);
+                }
+                else
+                {
+                    _members = MemberService.Update(_memberModel.Id, _memberModel.Name, _memberModel.Phone);
+                }
+                _showEditMemberDialog = false;
+            }
+            catch (Exception e)
+            {
+                _editMemberErrorMessage = e.Message;
+            }
+        }
+    }
+    private void OnDeleteMemberDialogClose(bool isCancel)
+    {
+        if (isCancel)
+        {
+
+            _showDeleteMemberDialog = false;
+            _deleteMember = null;
+        }
+        else
+        {
+            try
+            {
+                _deleteMemberErrorMessage = "";
+                _members = MemberService.Delete(_deleteMember.Id);
+                _showDeleteMemberDialog = false;
+                _deleteMember = null;
+            }
+            catch (Exception e)
+            {
+                _deleteMemberErrorMessage = e.Message;
+            }
+        }
+    }
+}
